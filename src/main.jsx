@@ -375,7 +375,7 @@ function App() {
     }
 
     if (!data) {
-      setAdminError('This account does not have PantHub administrator access.');
+      setAdminError('This account does not have Stack administrator access.');
       await supabase.auth.signOut();
       return false;
     }
@@ -1417,7 +1417,7 @@ function App() {
         <main className="main-area" style={{ gridColumn: '1 / -1', width: '100%', marginLeft: 0, minHeight: '100vh' }}>
           <div className="content-wrap" style={{ width: 'min(calc(100% - 48px), 980px)', maxWidth: 980, margin: '0 auto', boxSizing: 'border-box' }}>
             <header className="topbar">
-              <div className="footer-brand">pant<span>.</span>hub <small style={{ fontSize: 11, marginLeft: 10 }}>ADMIN</small></div>
+              <div className="footer-brand">STACK<span>.</span> <small style={{ fontSize: 11, marginLeft: 10 }}>ADMIN</small></div>
               <button className="outline-button" onClick={handleAdminLogout}>Sign out</button>
             </header>
             <section className="library-section">
@@ -1881,7 +1881,7 @@ function App() {
         <main className="main-area" style={{ gridColumn: '1 / -1', width: '100%', marginLeft: 0, minHeight: '100vh' }}>
           <div className="content-wrap" style={{ width: 'min(calc(100% - 48px), 560px)', maxWidth: 560, margin: '0 auto', boxSizing: 'border-box' }}>
             <header className="topbar">
-              <div className="footer-brand">pant<span>.</span>hub</div>
+              <div className="footer-brand">STACK<span>.</span></div>
               <button className="text-button" onClick={() => { setActive('Overview'); setAdminError(''); }}>Back to website <ArrowRight size={14}/></button>
             </header>
             <section className="library-section">
@@ -1915,8 +1915,8 @@ function App() {
       <div className="top-stripe" />
       <aside className={`sidebar ${menuOpen ? 'sidebar-open' : ''}`}>
         <div className="brand-row">
-          <div className="brand-mark">p.</div>
-          <div className="brand-word">pant<span>.</span>hub</div>
+          <div className="brand-mark">S.</div>
+          <div className="brand-word">STACK<span>.</span></div>
           <button className="icon-button mobile-close" onClick={() => setMenuOpen(false)} aria-label="Close menu"><X size={18}/></button>
         </div>
         <div className="workspace-block">
@@ -2164,7 +2164,7 @@ function App() {
               {filtered.slice(0, showAll ? filtered.length : 4).map((item, index) => (
                 <article className="resource-card" key={item.id}>
                   <div className="card-topline"><span className="file-type"><File size={13}/> {item.format}</span>{item.tag && <span className={`tag ${item.tag === 'NEW' ? 'tag-new' : 'tag-popular'}`}>{item.tag}</span>}</div>
-                  <div className="document-preview"><div className="doc-sheet"><div className="doc-brand">PANTHUB / {item.dept}</div><div className="doc-rule"/><div className="doc-title">{item.title}</div><div className="doc-lines"><i/><i/><i/><i/></div><div className="doc-footer">GBPIET · {item.year}</div></div><div className="doc-number">0{index + 1}</div></div>
+                  <div className="document-preview"><div className="doc-sheet"><div className="doc-brand">GBPIET Stack / {item.dept}</div><div className="doc-rule"/><div className="doc-title">{item.title}</div><div className="doc-lines"><i/><i/><i/><i/></div><div className="doc-footer">GBPIET · {item.year}</div></div><div className="doc-number">0{index + 1}</div></div>
                   <div className="resource-info">
                     <div className="resource-type">{item.type.toUpperCase()} <span>·</span> {item.sem.toUpperCase()}</div>
                     <h3>{item.title}</h3><p>{item.subtitle}</p>
@@ -2175,7 +2175,7 @@ function App() {
               ))}
               {filtered.length === 0 && !(selectedSubject ? resourceLoading : homepageLoading) && <div className="empty-state"><Search size={24}/><h3>{selectedSubject ? 'No published resources yet' : 'No resources found'}</h3><p>{selectedSubject ? 'There are no published PDFs for this subject yet. Check back later.' : 'Try another keyword or change your filters.'}</p><button className="text-button" onClick={() => {setQuery('');setDepartment('All departments');setCategory('All resources');setSelectedSubject('')}}>Clear filters <ArrowRight size={14}/></button></div>}
             </div>
-            <div className="library-footer"><span>{selectedSubject ? 'SHOWING PUBLISHED SUBJECT RESOURCES' : 'SHOWING ALL PUBLISHED RESOURCES'}</span><span>{selectedSubject ? 'PRIVATE PDF PREVIEW ENABLED' : 'LIVE COLLECTION · UPDATED FROM PANTHUB DATABASE'} <ArrowRight size={13}/></span></div>
+            <div className="library-footer"><span>{selectedSubject ? 'SHOWING PUBLISHED SUBJECT RESOURCES' : 'SHOWING ALL PUBLISHED RESOURCES'}</span><span>{selectedSubject ? 'PRIVATE PDF PREVIEW ENABLED' : 'LIVE COLLECTION · UPDATED FROM STACK DATABASE'} <ArrowRight size={13}/></span></div>
           </section>
 
           <section className="bottom-panels">
@@ -2199,7 +2199,7 @@ function App() {
             <div className="announcement-panel" id="resource-request">
               <div className="panel-heading"><div className="eyebrow">STUDENT SUPPORT / 004</div><FileText size={18}/></div>
               <h2>Can't find a <em>resource?</em></h2>
-              <p>Tell us what you need. The PantHub team will review your request.</p>
+              <p>Tell us what you need. The Stack team will review your request.</p>
               <form onSubmit={submitResourceRequest} style={{ display: 'grid', gap: 12, marginTop: 18 }}>
                 <label>
                   <span>YOUR NAME</span>
@@ -2254,7 +2254,7 @@ function App() {
           </section>
 
           <footer className="footer">
-            <div className="footer-brand">pant<span>.</span>hub</div>
+            <div className="footer-brand">STACK<span>.</span></div>
             <span>AN INDEPENDENT STUDENT RESOURCE PROJECT FOR GBPIET.</span>
             <span>MADE TO BE SHARED <b>✳</b> 2026</span>
           </footer>
