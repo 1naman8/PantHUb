@@ -9,15 +9,6 @@ import {
 import './styles.css';
 import { supabase } from "./supabase";
 
-const resources = [
-  { id: 1, title: 'Database Management Systems', subtitle: 'Unit-wise notes · Complete set', dept: 'CSE', sem: 'Semester 4', type: 'Notes', year: '2026', downloads: 428, date: '2 hours ago', tag: 'NEW', format: 'PDF' },
-  { id: 2, title: 'Theory of Computation', subtitle: 'End-semester question paper', dept: 'CSE', sem: 'Semester 4', type: 'Previous papers', year: '2025', downloads: 391, date: 'Yesterday', tag: 'POPULAR', format: 'PDF' },
-  { id: 3, title: 'Introduction to Machine Learning', subtitle: 'Lecture notes · Modules 1–5', dept: 'CSE-AIML', sem: 'Semester 5', type: 'Notes', year: '2026', downloads: 276, date: '2 days ago', tag: 'NEW', format: 'PDF' },
-  { id: 4, title: 'Engineering Mathematics II', subtitle: 'Solved assignment collection', dept: 'ECE', sem: 'Semester 2', type: 'Assignments', year: '2025', downloads: 243, date: '3 days ago', tag: '', format: 'PDF' },
-  { id: 5, title: 'Strength of Materials', subtitle: 'Practical record and experiments', dept: 'Mechanical', sem: 'Semester 3', type: 'Lab manuals', year: '2025', downloads: 198, date: '4 days ago', tag: '', format: 'PDF' },
-  { id: 6, title: 'Environmental Engineering', subtitle: 'Previous year paper · Set A', dept: 'Civil', sem: 'Semester 6', type: 'Previous papers', year: '2024', downloads: 167, date: 'Last week', tag: '', format: 'PDF' }
-];
-
 const categories = ['All resources', 'Notes', 'Previous papers', 'Assignments', 'Lab manuals', 'Syllabus'];
 
 const normalizeResourceType = (value = '') => value.toLowerCase().replace(/\\s+/g, ' ').trim();
@@ -40,6 +31,9 @@ function App() {
   const [subjectResources, setSubjectResources] = useState([]);
   const [resourceLoading, setResourceLoading] = useState(false);
   const [resourceError, setResourceError] = useState('');
+  const [homepageResources, setHomepageResources] = useState([]);
+  const [homepageLoading, setHomepageLoading] = useState(true);
+  const [homepageError, setHomepageError] = useState('');
 
   useEffect(() => {
     let isMounted = true;
@@ -74,6 +68,7 @@ function App() {
   const [view, setView] = useState('grid');
   const [menuOpen, setMenuOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [resourceSort, setResourceSort] = useState('recent');
 
   // Admin-only area and authentication state
   const [adminMode, setAdminMode] = useState(false);
@@ -676,6 +671,22 @@ function App() {
     await loadAdminResources();
   };
 
+  const toggleResourceFeatured = async (item) => {
+    setResourceActionBusy(true);
+    setResourceManageMessage('');
+    const { error } = await supabase
+      .from('resources')
+      .update({ is_featured: !item.is_featured })
+      .eq('id', item.id);
+    setResourceActionBusy(false);
+    if (error) {
+      setResourceManageMessage(`Could not update featured status: ${error.message}`);
+      return;
+    }
+    setResourceManageMessage(item.is_featured ? 'Resource removed from featured.' : 'Resource featured in the collection.');
+    await loadAdminResources();
+  };
+
   const deleteAdminResource = async (item) => {
     const confirmed = window.confirm(
       `Delete "${item.title}" and its stored PDF permanently? This cannot be undone.`
@@ -1153,6 +1164,62 @@ function App() {
 
   useEffect(() => {
     let isMounted = true;
+    async function loadHomepageResources() {
+      setHomepageLoading(true);
+      setHomepageError('');
+      const { data, error } = await supabase
+        .from('resources')
+        .select('id, subject_id, title, description, resource_type, academic_year, file_path, is_featured, download_count, created_at')
+        .eq('is_published', true)
+        .order('created_at', { ascending: false });
+      if (!isMounted) return;
+      if (error) {
+        console.error('Could not load collection resources:', error.message);
+        setHomepageError('The collection could not be loaded. Please refresh.');
+        setHomepageLoading(false);
+        return;
+      }
+      const rows = data || [];
+      const subjectIds = [...new Set(rows.map(row => row.subject_id).filter(Boolean))];
+      let subjectMap = {};
+      if (subjectIds.length) {
+        const { data: subjectData, error: subjectError } = await supabase
+          .from('subjects')
+          .select('id, name, semester, department_id')
+          .in('id', subjectIds);
+        if (subjectError) console.error('Could not load collection subject details:', subjectError.message);
+        subjectMap = Object.fromEntries((subjectData || []).map(row => [String(row.id), row]));
+      }
+      if (!isMounted) return;
+      const departmentMap = Object.fromEntries(departmentRows.map(row => [String(row.id), row.code]));
+      setHomepageResources(rows.map(row => {
+        const subject = subjectMap[String(row.subject_id)];
+        return {
+          id: row.id,
+          title: row.title,
+          subtitle: row.description || subject?.name || 'Academic resource',
+          dept: departmentMap[String(subject?.department_id)] || 'GBPIET',
+          sem: subject?.semester ? `Semester ${subject.semester}` : 'Semester —',
+          type: row.resource_type || 'Resource',
+          year: row.academic_year || '—',
+          downloads: row.download_count || 0,
+          date: formatResourceDate(row.created_at),
+          createdAt: row.created_at,
+          tag: row.is_featured ? 'FEATURED' : '',
+          isFeatured: Boolean(row.is_featured),
+          format: 'PDF',
+          filePath: row.file_path
+        };
+      }));
+      setHomepageLoading(false);
+    }
+    if (departmentRows.length) loadHomepageResources();
+    else if (!homepageResources.length) setHomepageLoading(false);
+    return () => { isMounted = false; };
+  }, [departmentRows]);
+
+  useEffect(() => {
+    let isMounted = true;
 
     async function loadSubjectResources() {
       setSubjectResources([]);
@@ -1233,20 +1300,30 @@ function App() {
         year: item.academic_year || '—',
         downloads: item.download_count || 0,
         date: formatResourceDate(item.created_at),
+        createdAt: item.created_at,
         tag: '',
+        isFeatured: false,
         format: 'PDF',
         filePath: item.file_path
       }))
-    : resources;
+    : homepageResources;
 
-  const filtered = useMemo(() => displayedResources.filter(item => {
-    const haystack = `${item.title} ${item.subtitle} ${item.dept} ${item.type} ${item.year}`.toLowerCase();
-    const typeMatches = category === 'All resources' ||
-      normalizeResourceType(item.type) === normalizeResourceType(category);
-    return haystack.includes(query.toLowerCase()) &&
-      (department === 'All departments' || item.dept === department) &&
-      typeMatches;
-  }), [displayedResources, query, department, category]);
+  const filtered = useMemo(() => {
+    const matching = displayedResources.filter(item => {
+      const haystack = `${item.title} ${item.subtitle} ${item.dept} ${item.type} ${item.year} ${item.sem}`.toLowerCase();
+      const typeMatches = category === 'All resources' ||
+        normalizeResourceType(item.type) === normalizeResourceType(category);
+      return haystack.includes(query.toLowerCase()) &&
+        (department === 'All departments' || item.dept === department) &&
+        typeMatches;
+    });
+    return matching.sort((a, b) => {
+      if (resourceSort === 'featured') return Number(b.isFeatured) - Number(a.isFeatured) || new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+      if (resourceSort === 'downloads') return (b.downloads || 0) - (a.downloads || 0);
+      if (resourceSort === 'title') return a.title.localeCompare(b.title);
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    });
+  }, [displayedResources, query, department, category, resourceSort]);
 
   const navItems = [
     { label: 'Overview', icon: House },
@@ -1307,6 +1384,26 @@ function App() {
       console.error('Could not create PDF download link:', error?.message);
       alert(`Could not download this PDF: ${error?.message || 'Signed URL was not returned.'}`);
       return;
+    }
+
+    // Count the download using a database function (atomic increment).
+    const { error: countError } = await supabase.rpc('increment_resource_download', {
+      p_resource_id: item.id
+    });
+
+    if (countError) {
+      console.error('PDF download started, but its count could not be updated:', countError.message);
+    } else {
+      setHomepageResources(current => current.map(resource =>
+        String(resource.id) === String(item.id)
+          ? { ...resource, downloads: (Number(resource.downloads) || 0) + 1 }
+          : resource
+      ));
+      setSubjectResources(current => current.map(resource =>
+        String(resource.id) === String(item.id)
+          ? { ...resource, download_count: (Number(resource.download_count) || 0) + 1 }
+          : resource
+      ));
     }
 
     // Supabase adds a download disposition to the signed URL, prompting a file download.
@@ -1687,6 +1784,7 @@ function App() {
                               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
                                 <button type="button" className="outline-button" onClick={() => beginResourceEdit(item)}>Edit details</button>
                                 <button type="button" className="outline-button" disabled={resourceActionBusy} onClick={() => toggleResourcePublished(item)}>{item.is_published ? 'Unpublish' : 'Publish'}</button>
+                                <button type="button" className="outline-button" disabled={resourceActionBusy} onClick={() => toggleResourceFeatured(item)}>{item.is_featured ? 'Unfeature' : 'Feature'}</button>
                                 <button type="button" className="text-button" disabled={resourceActionBusy} onClick={() => deleteAdminResource(item)}>Delete resource</button>
                               </div>
                             </>
@@ -2057,9 +2155,11 @@ function App() {
               </div>
             </div>
 
+            {!selectedSubject && homepageLoading && <p className="library-footer">LOADING THE COLLECTION…</p>}
+            {!selectedSubject && homepageError && <p role="alert" className="library-footer">{homepageError}</p>}
             {selectedSubject && resourceLoading && <p className="library-footer">LOADING PUBLISHED RESOURCES…</p>}
             {selectedSubject && resourceError && <p role="alert" className="library-footer">{resourceError}</p>}
-            <div className="collection-meta"><span>{filtered.length} RESOURCES SHOWN</span><span><SlidersHorizontal size={13}/> SORT: RECENTLY ADDED <ChevronDown size={13}/></span></div>
+            <div className="collection-meta"><span>{filtered.length} RESOURCES SHOWN</span><label className="collection-sort"><SlidersHorizontal size={13}/><span>SORT</span><select aria-label="Sort resources" value={resourceSort} onChange={e => setResourceSort(e.target.value)}><option value="recent">Recently added</option><option value="featured">Featured first</option><option value="downloads">Most downloaded</option><option value="title">Title A–Z</option></select><ChevronDown size={13}/></label></div>
             <div className={`resource-grid ${view === 'list' ? 'list-view' : ''}`}>
               {filtered.slice(0, showAll ? filtered.length : 4).map((item, index) => (
                 <article className="resource-card" key={item.id}>
@@ -2073,9 +2173,9 @@ function App() {
                   <div className="card-actions"><button onClick={() => openResourcePreview(item)}>Preview <ArrowUpRight size={14}/></button><button onClick={() => downloadResource(item)} aria-label={`Download ${item.title}`}><Download size={15}/> Download</button><button aria-label="Save resource" onClick={() => alert('Bookmarks will be connected in the next development phase.')}><Bookmark size={15}/></button></div>
                 </article>
               ))}
-              {filtered.length === 0 && !(selectedSubject && resourceLoading) && <div className="empty-state"><Search size={24}/><h3>{selectedSubject ? 'No published resources yet' : 'No resources found'}</h3><p>{selectedSubject ? 'There are no published PDFs for this subject yet. Check back later.' : 'Try another keyword or change your filters.'}</p><button className="text-button" onClick={() => {setQuery('');setDepartment('All departments');setCategory('All resources');setSelectedSubject('')}}>Clear filters <ArrowRight size={14}/></button></div>}
+              {filtered.length === 0 && !(selectedSubject ? resourceLoading : homepageLoading) && <div className="empty-state"><Search size={24}/><h3>{selectedSubject ? 'No published resources yet' : 'No resources found'}</h3><p>{selectedSubject ? 'There are no published PDFs for this subject yet. Check back later.' : 'Try another keyword or change your filters.'}</p><button className="text-button" onClick={() => {setQuery('');setDepartment('All departments');setCategory('All resources');setSelectedSubject('')}}>Clear filters <ArrowRight size={14}/></button></div>}
             </div>
-            <div className="library-footer"><span>{selectedSubject ? 'SHOWING PUBLISHED SUBJECT RESOURCES' : 'SAMPLE RESOURCES · SELECT A SUBJECT FOR LIVE CONTENT'}</span><span>{selectedSubject ? 'PRIVATE PDF PREVIEW ENABLED' : 'MORE RESOURCES WILL APPEAR HERE'} <ArrowRight size={13}/></span></div>
+            <div className="library-footer"><span>{selectedSubject ? 'SHOWING PUBLISHED SUBJECT RESOURCES' : 'SHOWING ALL PUBLISHED RESOURCES'}</span><span>{selectedSubject ? 'PRIVATE PDF PREVIEW ENABLED' : 'LIVE COLLECTION · UPDATED FROM PANTHUB DATABASE'} <ArrowRight size={13}/></span></div>
           </section>
 
           <section className="bottom-panels">
